@@ -1,11 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="ur5_with_camera">
 
-  <!-- ============================================================
-       Step A: Pull in the official UR5 Gazebo description.
-       This gives us all UR5 links, joints, ros2_control plugin.
-       We do NOT modify any UR files — we include them here.
-       ============================================================ -->
   <xacro:include filename="$(find ur_simulation_gazebo)/urdf/ur_sim_control.urdf.xacro"/>
 
   <!-- Instantiate the UR5 macro from the included file.
@@ -18,10 +13,6 @@
     simulation_controllers="$(find ur_simulation_gazebo)/config/ur_controllers.yaml"
   />
 
-  <!-- ============================================================
-       Step B: Add a camera link rigidly attached to tool0.
-       tool0 is the UR5 end-effector — this makes it eye-in-hand.
-       ============================================================ -->
 
   <!-- Joint: connects tool0 → camera_link (fixed = moves with arm) -->
   <joint name="camera_joint" type="fixed">
@@ -58,11 +49,6 @@
     </inertial>
   </link>
 
-  <!-- ============================================================
-       Step C: Gazebo camera sensor + ROS2 plugin.
-       This makes Gazebo actually simulate the camera and
-       publish images to /camera/image_raw
-       ============================================================ -->
   <gazebo reference="camera_link">
     <sensor type="camera" name="eye_in_hand_camera">
 
@@ -92,11 +78,7 @@
         </distortion>
       </camera>
 
-      <!--
-        The Gazebo Classic ROS2 camera plugin.
-        This is what actually publishes to ROS2 topics.
-        libgazebo_ros_camera.so is installed with gazebo_plugins package.
-      -->
+      
       <plugin name="eye_in_hand_camera_plugin" filename="libgazebo_ros_camera.so">
         <ros>
           <!-- All camera topics will be under /camera/ -->
