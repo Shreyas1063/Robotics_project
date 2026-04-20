@@ -1,0 +1,116 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="ur5_with_camera">
+
+  <!-- ============================================================
+       Step A: Pull in the official UR5 Gazebo description.
+       This gives us all UR5 links, joints, ros2_control plugin.
+       We do NOT modify any UR files — we include them here.
+       ============================================================ -->
+  <xacro:include filename="$(find ur_simulation_gazebo)/urdf/ur_sim_control.urdf.xacro"/>
+
+  <!-- Instantiate the UR5 macro from the included file.
+       These arguments are the same ones the official launch file passes. -->
+  <xacro:ur_sim_control
+    name="ur"
+    ur_type="ur5"
+    tf_prefix=""
+    sim_gazebo="true"
+    simulation_controllers="$(find ur_simulation_gazebo)/config/ur_controllers.yaml"
+  />
+
+  <!-- ============================================================
+       Step B: Add a camera link rigidly attached to tool0.
+       tool0 is the UR5 end-effector — this makes it eye-in-hand.
+       ============================================================ -->
+
+  <!-- Joint: connects tool0 → camera_link (fixed = moves with arm) -->
+  <joint name="camera_joint" type="fixed">
+    <parent link="tool0"/>
+    <child link="camera_link"/>
+    <!--
+      xyz: push camera 5 cm forward along tool Z axis
+      rpy: rotate so camera looks forward (down the tool axis)
+           rpy="0 1.5708 0" = 90 degrees around Y
+    -->
+    <origin xyz="0.05 0.0 0.0" rpy="0 1.5708 0"/>
+  </joint>
+
+  <!-- Camera body link (small box, just for visualisation) -->
+  <link name="camera_link">
+    <visual>
+      <geometry>
+        <box size="0.025 0.060 0.060"/>
+      </geometry>
+      <material name="camera_grey">
+        <color rgba="0.2 0.2 0.2 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.025 0.060 0.060"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.001" ixy="0" ixz="0"
+               iyy="0.001" iyz="0"
+               izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- ============================================================
+       Step C: Gazebo camera sensor + ROS2 plugin.
+       This makes Gazebo actually simulate the camera and
+       publish images to /camera/image_raw
+       ============================================================ -->
+  <gazebo reference="camera_link">
+    <sensor type="camera" name="eye_in_hand_camera">
+
+      <!-- How many frames per second the camera sends -->
+      <update_rate>30.0</update_rate>
+
+      <camera name="eye_in_hand_camera">
+        <!-- Field of view in radians (~60 degrees) -->
+        <horizontal_fov>1.0472</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.02</near>
+          <far>10.0</far>
+        </clip>
+        <!-- Distortion: set to 0 for ideal camera (no distortion) -->
+        <distortion>
+          <k1>0.0</k1>
+          <k2>0.0</k2>
+          <k3>0.0</k3>
+          <p1>0.0</p1>
+          <p2>0.0</p2>
+          <center>0.5 0.5</center>
+        </distortion>
+      </camera>
+
+      <!--
+        The Gazebo Classic ROS2 camera plugin.
+        This is what actually publishes to ROS2 topics.
+        libgazebo_ros_camera.so is installed with gazebo_plugins package.
+      -->
+      <plugin name="eye_in_hand_camera_plugin" filename="libgazebo_ros_camera.so">
+        <ros>
+          <!-- All camera topics will be under /camera/ -->
+          <namespace>/</namespace>
+          <remapping>image_raw:=camera/image_raw</remapping>
+          <remapping>camera_info:=camera/camera_info</remapping>
+        </ros>
+        <!-- This must match the link name above exactly -->
+        <camera_name>eye_in_hand_camera</camera_name>
+        <frame_name>camera_link</frame_name>
+        <hack_baseline>0.0</hack_baseline>
+      </plugin>
+
+    </sensor>
+  </gazebo>
+
+</robot>
